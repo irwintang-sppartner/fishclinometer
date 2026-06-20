@@ -559,6 +559,9 @@ function setStatus(text, cls) {
   statusEl.id = 'sensor-status'; // keep id
 }
 
+let smoothedX = 0;
+let smoothedZ = 0;
+
 function startSensor() {
   window.addEventListener('devicemotion', handleMotion, true);
   setTimeout(() => {
@@ -570,9 +573,9 @@ function startSensor() {
 
 function handleMotion(e) {
   // accelerationIncludingGravity gives gravity vector in device space.
-  // atan2(x, sqrt(y²+z²)) → true roll angle using all 3 axes.
-  // Upright portrait: x≈0 → angle≈0°. CW tilt → x increases → angle increases.
-  // White line drawn at -angle so CW tilt → CCW line movement (stays locked to gravity).
+  // Low-pass filter on x and z removes jitter. atan2(x, sqrt(y²+z²)) = true roll angle.
+  // displayAngle = 90 - roll: upright=90, fully sideways=0.
+  // White line drawn at -roll so CW tilt → CCW line movement.
 
   const acc = e.accelerationIncludingGravity;
   if (!acc || acc.x === null || acc.y === null) return;
@@ -582,9 +585,13 @@ function handleMotion(e) {
   document.getElementById('dbg-y').textContent = y !== null ? y.toFixed(2) : '--';
   document.getElementById('dbg-z').textContent = z !== null ? z.toFixed(2) : '--';
 
-  const rotAngle = Math.atan2(x, Math.sqrt(y * y + z * z)) * (180 / Math.PI);
+  const SMOOTHING = 0.2;
+  smoothedX = SMOOTHING * x + (1 - SMOOTHING) * smoothedX;
+  smoothedZ = SMOOTHING * z + (1 - SMOOTHING) * smoothedZ;
+
+  const rotAngle = Math.atan2(smoothedX, Math.sqrt(y * y + smoothedZ * smoothedZ)) * (180 / Math.PI);
   state.liveRotAngle = rotAngle;
-  state.liveAngle = Math.round(Math.abs(rotAngle) * 10) / 10;
+  state.liveAngle = Math.round(90 - Math.abs(rotAngle));
   document.getElementById('dbg-angle').textContent = rotAngle.toFixed(1);
   state.sensorActive = true;
   setStatus('Sensor active', 'ok');
@@ -693,7 +700,7 @@ function drawInclinometer(rawAngle) {
 function updateAngleDisplay() {
   const a = state.liveAngle;
   const display = document.getElementById('angle-display');
-  display.textContent = a !== null ? a.toFixed(1) + '°' : '--°';
+  display.textContent = a !== null ? a + '°' : '--°';
   drawInclinometer(state.liveRotAngle);
 }
 
