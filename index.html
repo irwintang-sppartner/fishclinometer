@@ -103,11 +103,12 @@
 
     /* ── Inclinometer ── */
     #inclinometer-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
       padding: 12px;
+    }
+
+    #canvas-wrap {
+      position: relative;
+      width: 100%;
     }
 
     #inclinometer-canvas {
@@ -119,29 +120,39 @@
     }
 
     #angle-display {
-      font-size: 48px;
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-size: 36px;
       font-weight: 800;
-      color: var(--accent);
-      letter-spacing: -0.02em;
+      color: #ffffff;
       line-height: 1;
-    }
-
-    #angle-label {
-      font-size: 14px;
-      color: var(--text-muted);
-      font-weight: 500;
+      text-shadow: 0 1px 8px rgba(0,0,0,0.95), 0 0 24px rgba(0,0,0,0.7);
+      pointer-events: none;
     }
 
     #sensor-status {
-      font-size: 13px;
-      padding: 6px 14px;
-      border-radius: 20px;
+      position: absolute;
+      bottom: 10px;
+      left: 12px;
+      font-size: 11px;
       font-weight: 600;
+      pointer-events: none;
     }
 
-    #sensor-status.ok { background: rgba(45,198,83,0.15); color: var(--green); }
-    #sensor-status.error { background: rgba(230,57,70,0.15); color: var(--danger); }
-    #sensor-status.pending { background: rgba(0,180,216,0.15); color: var(--accent); }
+    #sensor-status.ok      { color: var(--green); }
+    #sensor-status.error   { color: var(--danger); }
+    #sensor-status.pending { color: var(--accent); }
+
+    /* ── Live result ── */
+    #line-out-result {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+      margin-top: 16px;
+      text-align: center;
+      min-height: 38px;
+    }
 
     /* ── Input / Controls ── */
     label {
@@ -411,10 +422,18 @@
   <!-- ══ Screen 1: Inclinometer ══ -->
   <div class="screen active" id="screen-inclinometer">
     <div class="card" id="inclinometer-wrap">
-      <canvas id="inclinometer-canvas" width="480" height="480"></canvas>
-      <div id="angle-display">--°</div>
-      <div id="angle-label">Line Angle</div>
-      <div id="sensor-status" class="pending">Waiting for sensor…</div>
+      <div id="canvas-wrap">
+        <canvas id="inclinometer-canvas" width="480" height="480"></canvas>
+        <div id="angle-display">--°</div>
+        <div id="sensor-status" class="pending">Waiting for sensor…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Target Depth</div>
+      <label for="depth-input">Depth (feet)</label>
+      <input type="number" id="depth-input" placeholder="e.g. 20" min="1" max="500" inputmode="decimal" />
+      <div id="line-out-result">--</div>
     </div>
 
     <div class="card" id="debug-panel">
@@ -425,20 +444,6 @@
         <div>z: <span id="dbg-z" style="color:var(--accent)">--</span></div>
         <div>angle: <span id="dbg-angle" style="color:var(--green)">--</span></div>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Target Depth</div>
-      <label for="depth-input">Depth (feet)</label>
-      <input type="number" id="depth-input" placeholder="e.g. 20" min="1" max="500" inputmode="decimal" />
-    </div>
-
-    <button class="btn btn-primary" id="calc-btn">Calculate Line Length</button>
-
-    <div id="result-box">
-      <div id="result-line">-- ft</div>
-      <div id="result-sub"></div>
-      <div id="result-error"></div>
     </div>
   </div>
 
@@ -587,7 +592,7 @@ function handleMotion(e) {
   document.getElementById('dbg-y').textContent = y !== null ? y.toFixed(2) : '--';
   document.getElementById('dbg-z').textContent = z !== null ? z.toFixed(2) : '--';
 
-  const SMOOTHING = 0.05;
+  const SMOOTHING = 0.03;
   smoothedX = SMOOTHING * x + (1 - SMOOTHING) * smoothedX;
   smoothedZ = SMOOTHING * z + (1 - SMOOTHING) * smoothedZ;
 
@@ -600,7 +605,7 @@ function handleMotion(e) {
   const newAngleSigned = Math.round(90 - rotAngle);          // signed, for white line only
   const newAngle = Math.round(90 - Math.abs(rotAngle));      // always 0-90, for display
 
-  if (lastDisplayedAngle === null || Math.abs(newAngle - lastDisplayedAngle) >= 2) {
+  if (lastDisplayedAngle === null || Math.abs(newAngle - lastDisplayedAngle) >= 3) {
     lastDisplayedAngle = newAngle;
     state.liveAngleSigned = newAngleSigned;
     state.liveAngle = newAngle;
@@ -710,53 +715,36 @@ function drawInclinometer(displayAngle) {
 
 function updateAngleDisplay() {
   const a = state.liveAngle;
-  const display = document.getElementById('angle-display');
-  display.textContent = a !== null ? a + '°' : '--°';
+  document.getElementById('angle-display').textContent = a !== null ? a + '°' : '--°';
   drawInclinometer(state.liveAngleSigned);
+  updateLiveResult();
 }
 
 // Initial draw
 drawInclinometer(null);
 
 // ═══════════════════════════════════════════════════════
-//  Calculate (Screen 1)
+//  Calculate
 // ═══════════════════════════════════════════════════════
 function calcLineLength(depthFt, angleDeg) {
   const rad = angleDeg * (Math.PI / 180);
   return depthFt / Math.sin(rad);
 }
 
-document.getElementById('calc-btn').addEventListener('click', () => {
+function updateLiveResult() {
   const depthVal = parseFloat(document.getElementById('depth-input').value);
-  const resultBox = document.getElementById('result-box');
-  const resultLine = document.getElementById('result-line');
-  const resultSub = document.getElementById('result-sub');
-  const resultError = document.getElementById('result-error');
-
-  resultError.textContent = '';
-  resultBox.classList.add('visible');
-
+  const resultEl = document.getElementById('line-out-result');
   const angle = state.liveAngle;
 
-  if (!angle || angle < 1) {
-    resultLine.textContent = '--';
-    resultError.textContent = 'No valid angle detected. Tilt your phone or use manual mode.';
-    resultSub.textContent = '';
+  if (!depthVal || depthVal <= 0 || !angle || angle < 1) {
+    resultEl.textContent = '--';
     return;
   }
 
-  if (!depthVal || depthVal <= 0) {
-    resultLine.textContent = '--';
-    resultError.textContent = 'Enter a target depth.';
-    resultSub.textContent = '';
-    return;
-  }
+  resultEl.textContent = `Let out ${Math.round(calcLineLength(depthVal, angle))} ft of line`;
+}
 
-  const lineLen = calcLineLength(depthVal, angle);
-  resultLine.textContent = Math.round(lineLen) + ' ft';
-  resultSub.textContent = `At ${angle.toFixed(1)}° angle → ${depthVal} ft deep`;
-  resultError.textContent = '';
-});
+document.getElementById('depth-input').addEventListener('input', updateLiveResult);
 
 // ═══════════════════════════════════════════════════════
 //  Depth Chart (Screen 2)
