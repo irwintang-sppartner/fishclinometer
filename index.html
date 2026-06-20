@@ -513,8 +513,9 @@
 //  State
 // ═══════════════════════════════════════════════════════
 const state = {
-  liveAngle: null,      // abs(atan2(x,y)*(180/PI)) — display angle (0 = upright)
-  liveRotAngle: null,   // signed atan2(x,y)*(180/PI) — used for white line rotation
+  liveAngle: null,        // abs(liveAngleSigned) — for display only
+  liveAngleSigned: null, // 90 - rotAngle, signed — used for white line rotation
+  liveRotAngle: null,    // raw atan2 result
   sensorActive: false,
   manualMode: false,
   savedAngle: null,     // angle locked for chart
@@ -592,13 +593,16 @@ function handleMotion(e) {
 
   const rotAngle = Math.atan2(smoothedX, Math.sqrt(y * y + smoothedZ * smoothedZ)) * (180 / Math.PI);
   state.liveRotAngle = rotAngle;
-  const newAngle = Math.round(90 - Math.abs(rotAngle));
   document.getElementById('dbg-angle').textContent = rotAngle.toFixed(1);
   state.sensorActive = true;
   setStatus('Sensor active', 'ok');
 
+  const newAngleSigned = Math.round(90 - rotAngle);
+  const newAngle = Math.abs(newAngleSigned);
+
   if (lastDisplayedAngle === null || Math.abs(newAngle - lastDisplayedAngle) >= 2) {
     lastDisplayedAngle = newAngle;
+    state.liveAngleSigned = newAngleSigned;
     state.liveAngle = newAngle;
     updateAngleDisplay();
     syncChartAngle();
@@ -680,8 +684,8 @@ function drawInclinometer(displayAngle) {
   }
 
   // ── White horizontal line — gravity reference locked to horizontal ──
-  // displayAngle=90 (upright) → rotRad=0 → horizontal.
-  // As phone tilts toward 0, white line rotates to stay level with horizon.
+  // liveAngleSigned=90 (upright) → rotRad=0 → horizontal.
+  // CCW tilt: signed < 90 → positive rotRad. CW tilt: signed > 90 → negative rotRad.
   const rotRad = (90 - displayAngle) * (Math.PI / 180);
   const span = Math.sqrt(CW * CW + CH * CH);
 
@@ -708,7 +712,7 @@ function updateAngleDisplay() {
   const a = state.liveAngle;
   const display = document.getElementById('angle-display');
   display.textContent = a !== null ? Math.abs(a) + '°' : '--°';
-  drawInclinometer(state.liveAngle);
+  drawInclinometer(state.liveAngleSigned);
 }
 
 // Initial draw
