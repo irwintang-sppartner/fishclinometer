@@ -682,8 +682,7 @@ function drawInclinometer(displayAngle) {
   // ── White horizontal line — gravity reference locked to horizontal ──
   // displayAngle=90 (upright) → rotRad=0 → horizontal.
   // As phone tilts toward 0, white line rotates to stay level with horizon.
-  const absAngle = Math.abs(displayAngle);
-  const rotRad = (90 - absAngle) * (Math.PI / 180);
+  const rotRad = (90 - displayAngle) * (Math.PI / 180);
   const span = Math.sqrt(CW * CW + CH * CH);
 
   ctx.save();
@@ -708,7 +707,7 @@ function drawInclinometer(displayAngle) {
 function updateAngleDisplay() {
   const a = state.liveAngle;
   const display = document.getElementById('angle-display');
-  display.textContent = a !== null ? a + '°' : '--°';
+  display.textContent = a !== null ? Math.abs(a) + '°' : '--°';
   drawInclinometer(state.liveAngle);
 }
 
