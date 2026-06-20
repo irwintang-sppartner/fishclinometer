@@ -503,8 +503,8 @@
 //  State
 // ═══════════════════════════════════════════════════════
 const state = {
-  liveAngle: null,      // abs(beta) folded to 0-90 — fishing line angle from horizontal
-  liveBeta: null,       // signed beta — used for drawing rotation direction
+  liveAngle: null,      // abs(gamma) — fishing line angle from horizontal
+  liveGamma: null,      // signed gamma — used for drawing rotation direction
   sensorActive: false,
   manualMode: false,
   savedAngle: null,     // angle locked for chart
@@ -560,14 +560,12 @@ function startSensor() {
 }
 
 function handleOrientation(e) {
-  // beta = front-to-back tilt (-180…180). 0 = flat, 90 = upright portrait.
-  // Steering-wheel twist in portrait changes beta. Folded to 0-90 for the angle display.
+  // gamma = roll axis (-90…90). Phone rolls CW → gamma increases.
+  // Direct use: no negation, no inversion.
 
-  if (e.beta !== null) {
-    state.liveBeta = e.beta;
-    let angle = Math.abs(e.beta);
-    if (angle > 90) angle = 180 - angle; // fold into 0-90 range
-    state.liveAngle = Math.round(angle * 10) / 10;
+  if (e.gamma !== null) {
+    state.liveGamma = e.gamma;
+    state.liveAngle = Math.round(Math.abs(e.gamma) * 10) / 10;
     state.sensorActive = true;
     setStatus('Sensor active', 'ok');
     updateAngleDisplay();
@@ -620,7 +618,7 @@ const CH = canvas.height;
 const CX = CW / 2;
 const CY = CH / 2;
 
-function drawInclinometer(beta) {
+function drawInclinometer(gamma) {
   ctx.clearRect(0, 0, CW, CH);
 
   // Solid dark background
@@ -640,7 +638,7 @@ function drawInclinometer(beta) {
   ctx.stroke();
   ctx.restore();
 
-  if (beta === null) {
+  if (gamma === null) {
     ctx.font = 'bold 28px system-ui';
     ctx.fillStyle = '#4a6070';
     ctx.textAlign = 'center';
@@ -649,10 +647,10 @@ function drawInclinometer(beta) {
     return;
   }
 
-  // ── White horizontal line — stays locked to gravity as phone twists ──
-  // beta=90 = phone upright → rotRad=0 → line horizontal.
-  // Twist CW (beta drops below 90) → rotRad positive → line tilts CW (right end down).
-  const rotRad = (90 - beta) * (Math.PI / 180);
+  // ── White horizontal line — stays locked to gravity as phone rolls ──
+  // gamma=0 = phone upright → rotRad=0 → line horizontal.
+  // Roll CW (gamma increases) → rotRad positive → line tilts CW by same angle.
+  const rotRad = gamma * (Math.PI / 180);
   const span = Math.sqrt(CW * CW + CH * CH);
 
   ctx.save();
@@ -678,7 +676,7 @@ function updateAngleDisplay() {
   const a = state.liveAngle;
   const display = document.getElementById('angle-display');
   display.textContent = a !== null ? a.toFixed(1) + '°' : '--°';
-  drawInclinometer(state.liveBeta);
+  drawInclinometer(state.liveGamma);
 }
 
 // Initial draw
@@ -918,7 +916,7 @@ if (typeof DeviceOrientationEvent !== 'undefined' &&
 
 // Animation loop for canvas
 function loop() {
-  drawInclinometer(state.liveBeta);
+  drawInclinometer(state.liveGamma);
   requestAnimationFrame(loop);
 }
 loop();
