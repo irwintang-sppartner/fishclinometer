@@ -417,6 +417,15 @@
       <div id="sensor-status" class="pending">Waiting for sensor…</div>
     </div>
 
+    <div class="card" id="debug-panel">
+      <div class="card-title">Raw Sensor Values</div>
+      <div style="font-family:monospace;font-size:22px;font-weight:700;line-height:2;color:var(--text)">
+        <div>alpha: <span id="dbg-alpha" style="color:var(--accent)">--</span></div>
+        <div>beta: &nbsp;<span id="dbg-beta"  style="color:var(--accent)">--</span></div>
+        <div>gamma: <span id="dbg-gamma" style="color:var(--accent)">--</span></div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">Target Depth</div>
       <label for="depth-input">Depth (feet)</label>
@@ -563,6 +572,11 @@ function handleOrientation(e) {
   // Phone held vertically in portrait, screen facing user, twisted like a steering wheel.
   // gamma=0 when upright → display 90°. CW twist (right side toward user) → gamma increases.
   // displayAngle = 90 - gamma (no abs: CCW tilt goes above 90, CW tilt goes below 90).
+
+  // Debug panel — always update all three axes
+  document.getElementById('dbg-alpha').textContent = e.alpha !== null ? e.alpha.toFixed(1) : '--';
+  document.getElementById('dbg-beta').textContent  = e.beta  !== null ? e.beta.toFixed(1)  : '--';
+  document.getElementById('dbg-gamma').textContent = e.gamma !== null ? e.gamma.toFixed(1) : '--';
 
   if (e.gamma !== null) {
     state.liveGamma = e.gamma;
