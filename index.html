@@ -570,8 +570,8 @@ function startSensor() {
 
 function handleMotion(e) {
   // accelerationIncludingGravity gives gravity vector in device space.
-  // atan2(x, y) → rotation around the axis pointing toward the user (Z when held upright).
-  // Upright portrait: x≈0, y≈-9.8 → angle≈0°. CW tilt → x increases → angle increases.
+  // atan2(x, sqrt(y²+z²)) → true roll angle using all 3 axes.
+  // Upright portrait: x≈0 → angle≈0°. CW tilt → x increases → angle increases.
   // White line drawn at -angle so CW tilt → CCW line movement (stays locked to gravity).
 
   const acc = e.accelerationIncludingGravity;
@@ -582,7 +582,7 @@ function handleMotion(e) {
   document.getElementById('dbg-y').textContent = y !== null ? y.toFixed(2) : '--';
   document.getElementById('dbg-z').textContent = z !== null ? z.toFixed(2) : '--';
 
-  const rotAngle = Math.atan2(x, y) * (180 / Math.PI);
+  const rotAngle = Math.atan2(x, Math.sqrt(y * y + z * z)) * (180 / Math.PI);
   state.liveRotAngle = rotAngle;
   state.liveAngle = Math.round(Math.abs(rotAngle) * 10) / 10;
   document.getElementById('dbg-angle').textContent = rotAngle.toFixed(1);
