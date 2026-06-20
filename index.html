@@ -107,13 +107,15 @@
       flex-direction: column;
       align-items: center;
       gap: 12px;
+      padding: 12px;
     }
 
     #inclinometer-canvas {
-      width: 240px;
-      height: 240px;
-      border-radius: 50%;
+      width: 100%;
+      height: auto;
       display: block;
+      border-radius: 12px;
+      background: #0a0e14;
     }
 
     #angle-display {
@@ -625,114 +627,63 @@ const CW = canvas.width;
 const CH = canvas.height;
 const CX = CW / 2;
 const CY = CH / 2;
-const R = CW / 2 - 10;
 
 function drawInclinometer(angleDeg) {
   ctx.clearRect(0, 0, CW, CH);
 
-  // Background circle
-  ctx.beginPath();
-  ctx.arc(CX, CY, R, 0, Math.PI * 2);
-  ctx.fillStyle = '#141920';
-  ctx.fill();
-  ctx.strokeStyle = '#2a3340';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Degree tick marks
-  for (let deg = 0; deg <= 90; deg += 5) {
-    const rad = (deg - 90) * (Math.PI / 180); // 0° at bottom, 90° at right
-    const isMajor = deg % 10 === 0;
-    const innerR = R - (isMajor ? 28 : 16);
-    const outerR = R - 4;
-    const x1 = CX + Math.cos(rad) * innerR;
-    const y1 = CY + Math.sin(rad) * innerR;
-    const x2 = CX + Math.cos(rad) * outerR;
-    const y2 = CY + Math.sin(rad) * outerR;
-
-    // Mirror for left side
-    for (const sign of [-1, 1]) {
-      const sx1 = CX + Math.cos(rad) * innerR * sign;
-      const sy1 = CY + Math.sin(rad) * innerR;
-      const sx2 = CX + Math.cos(rad) * outerR * sign;
-      const sy2 = CY + Math.sin(rad) * outerR;
-      ctx.beginPath();
-      ctx.moveTo(sx1, sy1);
-      ctx.lineTo(sx2, sy2);
-      ctx.strokeStyle = isMajor ? '#4a6070' : '#2a3340';
-      ctx.lineWidth = isMajor ? 2 : 1;
-      ctx.stroke();
-
-      if (isMajor && deg > 0) {
-        const lx = CX + Math.cos(rad) * (innerR - 18) * sign;
-        const ly = CY + Math.sin(rad) * (innerR - 18);
-        ctx.font = 'bold 18px system-ui';
-        ctx.fillStyle = '#4a6070';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(deg.toString(), lx, ly);
-      }
-    }
-  }
-
-  // Fixed white horizontal reference line at 0°
-  const hLineLen = R * 0.88;
-  ctx.beginPath();
-  ctx.moveTo(CX - hLineLen, CY);
-  ctx.lineTo(CX + hLineLen, CY);
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'round';
-  ctx.stroke();
+  // Solid dark background — no circle, no ring
+  ctx.fillStyle = '#0a0e14';
+  ctx.fillRect(0, 0, CW, CH);
 
   if (angleDeg === null) {
-    // No signal indicator
-    ctx.font = 'bold 22px system-ui';
+    ctx.font = 'bold 28px system-ui';
     ctx.fillStyle = '#4a6070';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('No signal', CX, CY + 36);
+    ctx.fillText('No signal', CX, CY);
     return;
   }
 
-  const clampedAngle = Math.max(1, Math.min(89, angleDeg));
-  // Tilt line: rotates from horizontal as angle increases
-  const lineRad = -clampedAngle * (Math.PI / 180); // negative = tilt above horizontal
-  const lineLen = R * 0.88;
+  // rotDeg: how much the crosshair is rotated from screen axes
+  // liveAngle=90 → phone upright → lines are screen-H and screen-V (rotDeg=0)
+  // liveAngle=45 → phone tilted 45° → lines rotate 45° on screen
+  const rotDeg = 90 - angleDeg;
+  const rotRad = rotDeg * (Math.PI / 180);
+  // Long enough to always cross the entire canvas regardless of rotation
+  const span = Math.sqrt(CW * CW + CH * CH);
 
-  // Moving tilt line (full width, centered)
-  const tlx1 = CX + Math.cos(lineRad) * lineLen;
-  const tly1 = CY + Math.sin(lineRad) * lineLen;
-  const tlx2 = CX - Math.cos(lineRad) * lineLen;
-  const tly2 = CY - Math.sin(lineRad) * lineLen;
-
+  // ── White horizontal line (true gravity-level horizontal) ──
   ctx.save();
-  ctx.shadowColor = '#00b4d8';
-  ctx.shadowBlur = 14;
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 10;
   ctx.beginPath();
-  ctx.moveTo(tlx2, tly2);
-  ctx.lineTo(tlx1, tly1);
-  ctx.strokeStyle = '#00b4d8';
-  ctx.lineWidth = 5;
-  ctx.lineCap = 'round';
+  ctx.moveTo(CX + Math.cos(rotRad) * span, CY + Math.sin(rotRad) * span);
+  ctx.lineTo(CX - Math.cos(rotRad) * span, CY - Math.sin(rotRad) * span);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'butt';
   ctx.stroke();
   ctx.restore();
 
-  // Crosshair center dot
+  // ── Cyan vertical line (true vertical, perpendicular to horizontal) ──
+  const perpRad = rotRad + Math.PI / 2;
+  ctx.save();
+  ctx.shadowColor = '#00d4ff';
+  ctx.shadowBlur = 12;
   ctx.beginPath();
-  ctx.arc(CX, CY, 6, 0, Math.PI * 2);
-  ctx.fillStyle = '#00b4d8';
-  ctx.fill();
-
-  // Small crosshair tick at center
-  ctx.beginPath();
-  ctx.moveTo(CX - 16, CY);
-  ctx.lineTo(CX + 16, CY);
-  ctx.moveTo(CX, CY - 16);
-  ctx.lineTo(CX, CY + 16);
-  ctx.strokeStyle = 'rgba(0,180,216,0.35)';
-  ctx.lineWidth = 1.5;
+  ctx.moveTo(CX + Math.cos(perpRad) * span, CY + Math.sin(perpRad) * span);
+  ctx.lineTo(CX - Math.cos(perpRad) * span, CY - Math.sin(perpRad) * span);
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'butt';
   ctx.stroke();
+  ctx.restore();
+
+  // Center intersection dot
+  ctx.beginPath();
+  ctx.arc(CX, CY, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
 }
 
 function updateAngleDisplay() {
