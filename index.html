@@ -513,7 +513,7 @@
 //  State
 // ═══════════════════════════════════════════════════════
 const state = {
-  liveAngle: null,        // abs(liveAngleSigned) — for display only
+  liveAngle: null,        // 90 - abs(rotAngle) — always 0-90, for display and calculations
   liveAngleSigned: null, // 90 - rotAngle, signed — used for white line rotation
   liveRotAngle: null,    // raw atan2 result
   sensorActive: false,
@@ -597,8 +597,8 @@ function handleMotion(e) {
   state.sensorActive = true;
   setStatus('Sensor active', 'ok');
 
-  const newAngleSigned = Math.round(90 - rotAngle);
-  const newAngle = Math.abs(newAngleSigned);
+  const newAngleSigned = Math.round(90 - rotAngle);          // signed, for white line only
+  const newAngle = Math.round(90 - Math.abs(rotAngle));      // always 0-90, for display
 
   if (lastDisplayedAngle === null || Math.abs(newAngle - lastDisplayedAngle) >= 2) {
     lastDisplayedAngle = newAngle;
@@ -711,7 +711,7 @@ function drawInclinometer(displayAngle) {
 function updateAngleDisplay() {
   const a = state.liveAngle;
   const display = document.getElementById('angle-display');
-  display.textContent = a !== null ? Math.abs(a) + '°' : '--°';
+  display.textContent = a !== null ? a + '°' : '--°';
   drawInclinometer(state.liveAngleSigned);
 }
 
