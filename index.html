@@ -597,7 +597,7 @@ function handleMotion(e) {
   state.sensorActive = true;
   setStatus('Sensor active', 'ok');
 
-  if (lastDisplayedAngle === null || Math.abs(newAngle - lastDisplayedAngle) >= 1) {
+  if (lastDisplayedAngle === null || Math.abs(newAngle - lastDisplayedAngle) >= 2) {
     lastDisplayedAngle = newAngle;
     state.liveAngle = newAngle;
     updateAngleDisplay();
