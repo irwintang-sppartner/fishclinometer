@@ -648,10 +648,10 @@ function drawInclinometer(gamma) {
     return;
   }
 
-  // ── White horizontal line — rotates with gamma to stay level with true horizontal ──
-  // gamma > 0: phone tilted right → line tilts clockwise on screen (right side down)
-  // gamma < 0: phone tilted left  → line tilts counter-clockwise
-  const rotRad = gamma * (Math.PI / 180);
+  // ── White horizontal line — stays locked to gravity as phone twists ──
+  // Phone rotates CW (gamma +) → horizon appears CCW on screen (right end UP).
+  // Same as aircraft attitude indicator: roll right → horizon bar tilts left.
+  const rotRad = -gamma * (Math.PI / 180);
   const span = Math.sqrt(CW * CW + CH * CH);
 
   ctx.save();
