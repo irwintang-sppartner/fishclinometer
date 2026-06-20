@@ -682,7 +682,7 @@ function drawInclinometer(displayAngle) {
   // ── White horizontal line — gravity reference locked to horizontal ──
   // displayAngle=90 (upright) → rotRad=0 → horizontal.
   // As phone tilts toward 0, white line rotates to stay level with horizon.
-  const rotRad = (90 - displayAngle) * (Math.PI / 180);
+  const rotRad = -(90 - displayAngle) * (Math.PI / 180);
   const span = Math.sqrt(CW * CW + CH * CH);
 
   ctx.save();
@@ -946,12 +946,7 @@ if (typeof DeviceMotionEvent !== 'undefined' &&
   startSensor();
 }
 
-// Animation loop for canvas
-function loop() {
-  drawInclinometer(state.liveAngle);
-  requestAnimationFrame(loop);
-}
-loop();
+// Canvas redraws only via updateAngleDisplay, which is gated by the 2° dead zone.
 </script>
 </body>
 </html>
