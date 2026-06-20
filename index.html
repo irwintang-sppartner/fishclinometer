@@ -565,7 +565,7 @@ function handleOrientation(e) {
 
   if (e.gamma !== null) {
     state.liveGamma = e.gamma;
-    state.liveAngle = Math.round(Math.abs(e.gamma) * 10) / 10;
+    state.liveAngle = Math.round((90 - Math.abs(e.gamma)) * 10) / 10;
     state.sensorActive = true;
     setStatus('Sensor active', 'ok');
     updateAngleDisplay();
@@ -650,7 +650,7 @@ function drawInclinometer(gamma) {
   // ── White horizontal line — stays locked to gravity as phone rolls ──
   // gamma=0 = phone upright → rotRad=0 → line horizontal.
   // Roll CW (gamma increases) → rotRad positive → line tilts CW by same angle.
-  const rotRad = gamma * (Math.PI / 180);
+  const rotRad = -gamma * (Math.PI / 180);
   const span = Math.sqrt(CW * CW + CH * CH);
 
   ctx.save();
