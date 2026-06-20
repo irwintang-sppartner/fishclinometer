@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Fishclinometer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0e14;
+      --surface: #141920;
+      --surface2: #1e2530;
+      --border: #2a3340;
+      --accent: #00b4d8;
+      --accent2: #48cae4;
+      --text: #e8f4f8;
+      --text-muted: #7a9ab0;
+      --green: #2dc653;
+      --warn: #f4a261;
+      --danger: #e63946;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* ── Layout ── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── Tab bar ── */
+    #tabs {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 2px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 14px 8px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 0.2s, border-bottom 0.2s;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── Screen panels ── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px 16px;
+      gap: 20px;
+    }
+
+    .screen.active { display: flex; }
+
+    /* ── Section cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── Inclinometer ── */
+    #inclinometer-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #inclinometer-canvas {
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      display: block;
+    }
+
+    #angle-display {
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    #angle-label {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    #sensor-status {
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    #sensor-status.ok { background: rgba(45,198,83,0.15); color: var(--green); }
+    #sensor-status.error { background: rgba(230,57,70,0.15); color: var(--danger); }
+    #sensor-status.pending { background: rgba(0,180,216,0.15); color: var(--accent); }
+
+    /* ── Input / Controls ── */
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    input[type="number"], input[type="text"], select {
+      width: 100%;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 20px;
+      font-weight: 700;
+      padding: 14px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type="number"]:focus, input[type="text"]:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    /* ── Buttons ── */
+    .btn {
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.97); opacity: 0.85; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-green {
+      background: var(--green);
+      color: #000;
+    }
+
+    /* ── Result box ── */
+    #result-box {
+      background: var(--surface2);
+      border: 2px solid var(--accent);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      display: none;
+    }
+
+    #result-box.visible { display: block; }
+
+    #result-line {
+      font-size: 36px;
+      font-weight: 900;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    #result-sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    #result-error {
+      font-size: 16px;
+      color: var(--danger);
+      font-weight: 700;
+    }
+
+    /* ── Depth chart table ── */
+    #chart-angle-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    #chart-angle-display {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    #save-angle-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      font-size: 18px;
+      font-weight: 700;
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td:last-child { color: var(--accent); }
+    tr:last-child td { border-bottom: none; }
+
+    tr.highlight td { background: rgba(0,180,216,0.08); }
+
+    /* ── Save chart form ── */
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .toggle-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .toggle-btn {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.selected {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,180,216,0.1);
+    }
+
+    /* ── Saved charts log ── */
+    .log-entry {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+
+    .log-entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .log-entry-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .log-entry-time {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .log-entry-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .log-delete-btn {
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 15px;
+      padding: 20px 0;
+    }
+
+    /* ── Permission overlay ── */
+    #permission-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10,14,20,0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      gap: 20px;
+      text-align: center;
+      z-index: 100;
+    }
+
+    #permission-overlay.hidden { display: none; }
+
+    #permission-overlay h2 { font-size: 24px; }
+    #permission-overlay p { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+
+    .fish-icon { font-size: 64px; }
+  </style>
+</head>
+<body>
+<div id="permission-overlay">
+  <div class="fish-icon">🎣</div>
+  <h2>Fishclinometer</h2>
+  <p>This app needs access to your device's motion sensors to measure line angle.<br><br>Point your phone so the screen faces the fishing line, then tap below.</p>
+  <button class="btn btn-primary" id="request-permission-btn" style="max-width:320px">Enable Motion Sensor</button>
+  <button class="btn btn-secondary" id="skip-permission-btn" style="max-width:320px; margin-top:0">Enter Angle Manually</button>
+</div>
+
+<div id="app">
+  <div id="tabs">
+    <button class="tab-btn active" data-tab="inclinometer">Inclinometer</button>
+    <button class="tab-btn" data-tab="chart">Depth Chart</button>
+    <button class="tab-btn" data-tab="log">Saved</button>
+  </div>
+
+  <!-- ══ Screen 1: Inclinometer ══ -->
+  <div class="screen active" id="screen-inclinometer">
+    <div class="card" id="inclinometer-wrap">
+      <canvas id="inclinometer-canvas" width="480" height="480"></canvas>
+      <div id="angle-display">--°</div>
+      <div id="angle-label">Line Angle</div>
+      <div id="sensor-status" class="pending">Waiting for sensor…</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Target Depth</div>
+      <label for="depth-input">Depth (feet)</label>
+      <input type="number" id="depth-input" placeholder="e.g. 20" min="1" max="500" inputmode="decimal" />
+    </div>
+
+    <button class="btn btn-primary" id="calc-btn">Calculate Line Length</button>
+
+    <div id="result-box">
+      <div id="result-line">-- ft</div>
+      <div id="result-sub"></div>
+      <div id="result-error"></div>
+    </div>
+  </div>
+
+  <!-- ══ Screen 2: Depth Chart ══ -->
+  <div class="screen" id="screen-chart">
+    <div class="card">
+      <div class="card-title">Current Angle</div>
+      <div id="chart-angle-row">
+        <div id="chart-angle-display">--°</div>
+        <button class="btn btn-secondary save-angle-btn" id="save-angle-btn" style="max-width:160px;padding:12px;font-size:14px;">Use Live Angle</button>
+      </div>
+      <div style="margin-top:12px">
+        <label for="chart-angle-input">Override angle (degrees)</label>
+        <input type="number" id="chart-angle-input" placeholder="e.g. 35" min="1" max="89" inputmode="decimal" />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Line Length to Let Out</div>
+      <table id="depth-table">
+        <thead>
+          <tr><th>Target Depth</th><th>Line Out</th></tr>
+        </thead>
+        <tbody id="depth-table-body">
+          <tr><td colspan="2" class="empty-state" style="text-align:center">Enter an angle above to generate the chart</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <button class="btn btn-green" id="open-save-btn">Save Chart…</button>
+
+    <!-- Save form (inline, hidden by default) -->
+    <div class="card" id="save-form-card" style="display:none">
+      <div class="card-title">Save Chart</div>
+
+      <div class="form-row">
+        <label for="sinker-input">Sinker Weight (oz)</label>
+        <input type="number" id="sinker-input" placeholder="e.g. 1" min="0" step="0.25" inputmode="decimal" />
+      </div>
+
+      <div class="form-row">
+        <label>Trolling Speed (mph)</label>
+        <div class="toggle-row" id="speed-toggle"></div>
+      </div>
+
+      <div class="form-row">
+        <label>Dodger Used?</label>
+        <div class="toggle-row">
+          <button class="toggle-btn" data-value="Yes" id="dodger-yes">Yes</button>
+          <button class="toggle-btn" data-value="No" id="dodger-no">No</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn btn-secondary" id="cancel-save-btn" style="flex:1">Cancel</button>
+        <button class="btn btn-green" id="confirm-save-btn" style="flex:1">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Screen 3: Saved Log ══ -->
+  <div class="screen" id="screen-log">
+    <div id="log-list">
+      <div class="empty-state">No saved charts yet.<br>Head to the Depth Chart tab to save one.</div>
+    </div>
+    <button class="btn btn-secondary" id="clear-all-btn" style="display:none;margin-top:auto">Clear All</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════
+const state = {
+  liveAngle: null,      // degrees from vertical (the line angle)
+  sensorActive: false,
+  manualMode: false,
+  savedAngle: null,     // angle locked for chart
+  chartDepths: [5, 10, 15, 20, 25, 30, 40, 50],
+  savedCharts: [],
+};
+
+// Load from localStorage
+try {
+  const raw = localStorage.getItem('fishclinometer_charts');
+  if (raw) state.savedCharts = JSON.parse(raw);
+} catch(e) {}
+
+// ═══════════════════════════════════════════════════════
+//  Tabs
+// ═══════════════════════════════════════════════════════
+const tabBtns = document.querySelectorAll('.tab-btn');
+const screens = { inclinometer: document.getElementById('screen-inclinometer'),
+                  chart: document.getElementById('screen-chart'),
+                  log: document.getElementById('screen-log') };
+
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    screens[btn.dataset.tab].classList.add('active');
+    if (btn.dataset.tab === 'log') renderLog();
+    if (btn.dataset.tab === 'chart') syncChartAngle();
+  });
+});
+
+// ═══════════════════════════════════════════════════════
+//  Sensor permission + orientation
+// ═══════════════════════════════════════════════════════
+const overlay = document.getElementById('permission-overlay');
+const statusEl = document.getElementById('sensor-status');
+
+function setStatus(text, cls) {
+  statusEl.textContent = text;
+  statusEl.className = 'sensor-status ' + cls;
+  statusEl.id = 'sensor-status'; // keep id
+}
+
+function startSensor() {
+  window.addEventListener('deviceorientation', handleOrientation, true);
+  // Give it 500ms — if no events fire, flag as unavailable
+  setTimeout(() => {
+    if (!state.sensorActive && !state.manualMode) {
+      setStatus('No sensor detected', 'error');
+    }
+  }, 1500);
+}
+
+function handleOrientation(e) {
+  // beta = front-to-back tilt (-180…180), gamma = left-to-right (-90…90)
+  // We use beta: 0 = flat, 90 = portrait upright
+  // Line angle from horizontal = 90 - |beta|, but we want angle from vertical
+  // When phone faces line going down: beta is roughly the angle from horizontal
+  // Line angle (from vertical) = 90 - beta when phone is in portrait, tilted forward
+  // We'll expose the raw tilt as the "line angle from horizontal" (easier to understand)
+
+  let angle = null;
+  if (e.beta !== null) {
+    // beta: device tilted toward user = positive; away = negative
+    // If phone screen faces line, the beta angle IS approximately the line angle from horizontal
+    angle = Math.abs(e.beta);
+    if (angle > 90) angle = 180 - angle; // fold into 0-90 range
+  }
+
+  if (angle !== null) {
+    state.liveAngle = Math.round(angle * 10) / 10;
+    state.sensorActive = true;
+    setStatus('Sensor active', 'ok');
+    updateAngleDisplay();
+    syncChartAngle();
+  }
+}
+
+document.getElementById('request-permission-btn').addEventListener('click', async () => {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const result = await DeviceOrientationEvent.requestPermission();
+      if (result === 'granted') {
+        overlay.classList.add('hidden');
+        startSensor();
+      } else {
+        alert('Permission denied. You can still enter the angle manually.');
+        enableManualMode();
+      }
+    } catch(err) {
+      console.error(err);
+      enableManualMode();
+    }
+  } else {
+    // Android / desktop — no permission required
+    overlay.classList.add('hidden');
+    startSensor();
+  }
+});
+
+document.getElementById('skip-permission-btn').addEventListener('click', () => {
+  overlay.classList.add('hidden');
+  enableManualMode();
+});
+
+function enableManualMode() {
+  state.manualMode = true;
+  setStatus('Manual mode', 'pending');
+  // Try sensor anyway — might still work
+  startSensor();
+}
+
+// ═══════════════════════════════════════════════════════
+//  Canvas inclinometer
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('inclinometer-canvas');
+const ctx = canvas.getContext('2d');
+const CW = canvas.width;
+const CH = canvas.height;
+const CX = CW / 2;
+const CY = CH / 2;
+const R = CW / 2 - 10;
+
+function drawInclinometer(angleDeg) {
+  ctx.clearRect(0, 0, CW, CH);
+
+  // Background circle
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, 0, Math.PI * 2);
+  ctx.fillStyle = '#141920';
+  ctx.fill();
+  ctx.strokeStyle = '#2a3340';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Degree tick marks
+  for (let deg = 0; deg <= 90; deg += 5) {
+    const rad = (deg - 90) * (Math.PI / 180); // 0° at bottom, 90° at right
+    const isMajor = deg % 10 === 0;
+    const innerR = R - (isMajor ? 28 : 16);
+    const outerR = R - 4;
+    const x1 = CX + Math.cos(rad) * innerR;
+    const y1 = CY + Math.sin(rad) * innerR;
+    const x2 = CX + Math.cos(rad) * outerR;
+    const y2 = CY + Math.sin(rad) * outerR;
+
+    // Mirror for left side
+    for (const sign of [-1, 1]) {
+      const sx1 = CX + Math.cos(rad) * innerR * sign;
+      const sy1 = CY + Math.sin(rad) * innerR;
+      const sx2 = CX + Math.cos(rad) * outerR * sign;
+      const sy2 = CY + Math.sin(rad) * outerR;
+      ctx.beginPath();
+      ctx.moveTo(sx1, sy1);
+      ctx.lineTo(sx2, sy2);
+      ctx.strokeStyle = isMajor ? '#4a6070' : '#2a3340';
+      ctx.lineWidth = isMajor ? 2 : 1;
+      ctx.stroke();
+
+      if (isMajor && deg > 0) {
+        const lx = CX + Math.cos(rad) * (innerR - 18) * sign;
+        const ly = CY + Math.sin(rad) * (innerR - 18);
+        ctx.font = 'bold 18px system-ui';
+        ctx.fillStyle = '#4a6070';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(deg.toString(), lx, ly);
+      }
+    }
+  }
+
+  // Horizontal reference line (0°)
+  ctx.beginPath();
+  ctx.moveTo(CX - R + 4, CY);
+  ctx.lineTo(CX + R - 4, CY);
+  ctx.strokeStyle = '#2a3340';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (angleDeg === null) {
+    // No signal indicator
+    ctx.font = 'bold 22px system-ui';
+    ctx.fillStyle = '#4a6070';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No signal', CX, CY);
+    return;
+  }
+
+  const clampedAngle = Math.max(1, Math.min(89, angleDeg));
+  // Map angle: 0° = horizontal (center right), 90° = vertical (top)
+  // We draw the line from center downward at the angle from horizontal
+  const lineRad = (clampedAngle - 90) * (Math.PI / 180); // flipped to draw from center
+  const lineLen = R * 0.78;
+
+  // Line (both directions from center to show line going into water)
+  const lx = CX + Math.cos(lineRad) * lineLen;
+  const ly = CY + Math.sin(lineRad) * lineLen;
+  const lx2 = CX - Math.cos(lineRad) * lineLen * 0.2;
+  const ly2 = CY - Math.sin(lineRad) * lineLen * 0.2;
+
+  // Glow
+  ctx.save();
+  ctx.shadowColor = '#00b4d8';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.moveTo(lx2, ly2);
+  ctx.lineTo(lx, ly);
+  ctx.strokeStyle = '#00b4d8';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  ctx.restore();
+
+  // Arrowhead at line tip
+  const arrowSize = 10;
+  const arrowAngle = Math.atan2(ly - ly2, lx - lx2);
+  ctx.beginPath();
+  ctx.moveTo(lx, ly);
+  ctx.lineTo(lx - arrowSize * Math.cos(arrowAngle - 0.4), ly - arrowSize * Math.sin(arrowAngle - 0.4));
+  ctx.lineTo(lx - arrowSize * Math.cos(arrowAngle + 0.4), ly - arrowSize * Math.sin(arrowAngle + 0.4));
+  ctx.closePath();
+  ctx.fillStyle = '#00b4d8';
+  ctx.fill();
+
+  // Crosshair center
+  ctx.beginPath();
+  ctx.arc(CX, CY, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#00b4d8';
+  ctx.fill();
+
+  // Horizontal crosshair arms
+  ctx.beginPath();
+  ctx.moveTo(CX - 20, CY);
+  ctx.lineTo(CX + 20, CY);
+  ctx.moveTo(CX, CY - 20);
+  ctx.lineTo(CX, CY + 20);
+  ctx.strokeStyle = 'rgba(0,180,216,0.4)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function updateAngleDisplay() {
+  const a = state.liveAngle;
+  const display = document.getElementById('angle-display');
+  display.textContent = a !== null ? a.toFixed(1) + '°' : '--°';
+  drawInclinometer(a);
+}
+
+// Initial draw
+drawInclinometer(null);
+
+// ═══════════════════════════════════════════════════════
+//  Calculate (Screen 1)
+// ═══════════════════════════════════════════════════════
+function calcLineLength(depthFt, angleDeg) {
+  const rad = angleDeg * (Math.PI / 180);
+  return depthFt / Math.sin(rad);
+}
+
+document.getElementById('calc-btn').addEventListener('click', () => {
+  const depthVal = parseFloat(document.getElementById('depth-input').value);
+  const resultBox = document.getElementById('result-box');
+  const resultLine = document.getElementById('result-line');
+  const resultSub = document.getElementById('result-sub');
+  const resultError = document.getElementById('result-error');
+
+  resultError.textContent = '';
+  resultBox.classList.add('visible');
+
+  const angle = state.liveAngle;
+
+  if (!angle || angle < 1) {
+    resultLine.textContent = '--';
+    resultError.textContent = 'No valid angle detected. Tilt your phone or use manual mode.';
+    resultSub.textContent = '';
+    return;
+  }
+
+  if (!depthVal || depthVal <= 0) {
+    resultLine.textContent = '--';
+    resultError.textContent = 'Enter a target depth.';
+    resultSub.textContent = '';
+    return;
+  }
+
+  const lineLen = calcLineLength(depthVal, angle);
+  resultLine.textContent = Math.round(lineLen) + ' ft';
+  resultSub.textContent = `At ${angle.toFixed(1)}° angle → ${depthVal} ft deep`;
+  resultError.textContent = '';
+});
+
+// ═══════════════════════════════════════════════════════
+//  Depth Chart (Screen 2)
+// ═══════════════════════════════════════════════════════
+const chartAngleInput = document.getElementById('chart-angle-input');
+const chartAngleDisplay = document.getElementById('chart-angle-display');
+
+function syncChartAngle() {
+  if (state.liveAngle !== null) {
+    chartAngleDisplay.textContent = state.liveAngle.toFixed(1) + '°';
+  }
+}
+
+document.getElementById('save-angle-btn').addEventListener('click', () => {
+  if (state.liveAngle !== null) {
+    chartAngleInput.value = state.liveAngle.toFixed(1);
+    renderTable(state.liveAngle);
+  } else {
+    alert('No live angle yet. Tilt your phone toward the fishing line first.');
+  }
+});
+
+chartAngleInput.addEventListener('input', () => {
+  const v = parseFloat(chartAngleInput.value);
+  if (v > 0 && v < 90) renderTable(v);
+});
+
+function renderTable(angleDeg) {
+  const tbody = document.getElementById('depth-table-body');
+  const currentDepth = parseFloat(document.getElementById('depth-input').value) || null;
+
+  tbody.innerHTML = state.chartDepths.map(depth => {
+    const lineLen = calcLineLength(depth, angleDeg);
+    const isHighlight = currentDepth && depth === currentDepth;
+    return `<tr class="${isHighlight ? 'highlight' : ''}">
+      <td>${depth} ft</td>
+      <td>${Math.round(lineLen)} ft</td>
+    </tr>`;
+  }).join('');
+
+  state.savedAngle = angleDeg;
+}
+
+// ═══════════════════════════════════════════════════════
+//  Speed toggle (1-5 mph)
+// ═══════════════════════════════════════════════════════
+const speedToggle = document.getElementById('speed-toggle');
+let selectedSpeed = null;
+[1, 2, 3, 4, 5].forEach(s => {
+  const btn = document.createElement('button');
+  btn.className = 'toggle-btn';
+  btn.textContent = s;
+  btn.dataset.value = s;
+  btn.addEventListener('click', () => {
+    speedToggle.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedSpeed = s;
+  });
+  speedToggle.appendChild(btn);
+});
+
+// Dodger toggle
+let selectedDodger = null;
+['dodger-yes', 'dodger-no'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function() {
+    document.getElementById('dodger-yes').classList.remove('selected');
+    document.getElementById('dodger-no').classList.remove('selected');
+    this.classList.add('selected');
+    selectedDodger = this.dataset.value;
+  });
+});
+
+// Save form open/close
+document.getElementById('open-save-btn').addEventListener('click', () => {
+  if (!state.savedAngle) { alert('Generate the chart first by entering an angle above.'); return; }
+  document.getElementById('save-form-card').style.display = 'block';
+  document.getElementById('open-save-btn').style.display = 'none';
+  document.getElementById('save-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+document.getElementById('cancel-save-btn').addEventListener('click', closeSaveForm);
+
+function closeSaveForm() {
+  document.getElementById('save-form-card').style.display = 'none';
+  document.getElementById('open-save-btn').style.display = '';
+}
+
+document.getElementById('confirm-save-btn').addEventListener('click', () => {
+  const sinker = document.getElementById('sinker-input').value;
+  const now = new Date();
+  const entry = {
+    id: Date.now(),
+    angle: state.savedAngle,
+    sinker: sinker || null,
+    speed: selectedSpeed,
+    dodger: selectedDodger,
+    timestamp: now.toISOString(),
+    rows: state.chartDepths.map(d => ({
+      depth: d,
+      lineOut: Math.round(calcLineLength(d, state.savedAngle))
+    }))
+  };
+
+  state.savedCharts.unshift(entry);
+  try { localStorage.setItem('fishclinometer_charts', JSON.stringify(state.savedCharts)); } catch(e) {}
+
+  closeSaveForm();
+  // Switch to log tab
+  tabBtns.forEach(b => b.classList.remove('active'));
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  document.querySelector('[data-tab="log"]').classList.add('active');
+  screens.log.classList.add('active');
+  renderLog();
+});
+
+// ═══════════════════════════════════════════════════════
+//  Saved Log (Screen 3)
+// ═══════════════════════════════════════════════════════
+function renderLog() {
+  const list = document.getElementById('log-list');
+  const clearBtn = document.getElementById('clear-all-btn');
+
+  if (state.savedCharts.length === 0) {
+    list.innerHTML = '<div class="empty-state">No saved charts yet.<br>Head to the Depth Chart tab to save one.</div>';
+    clearBtn.style.display = 'none';
+    return;
+  }
+
+  clearBtn.style.display = '';
+
+  list.innerHTML = state.savedCharts.map((entry, idx) => {
+    const d = new Date(entry.timestamp);
+    const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+                    ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    const meta = [
+      entry.sinker ? `${entry.sinker} oz sinker` : null,
+      entry.speed ? `${entry.speed} mph` : null,
+      entry.dodger ? `Dodger: ${entry.dodger}` : null,
+    ].filter(Boolean).join(' · ');
+
+    const rows = entry.rows.map(r =>
+      `<tr><td>${r.depth} ft</td><td style="color:var(--accent)">${r.lineOut} ft</td></tr>`
+    ).join('');
+
+    return `
+      <div class="log-entry" data-id="${entry.id}">
+        <div class="log-entry-header">
+          <div>
+            <div class="log-entry-title">Angle: ${entry.angle.toFixed(1)}°</div>
+            <div class="log-entry-time">${dateStr}</div>
+          </div>
+          <button class="log-delete-btn" onclick="deleteEntry(${entry.id})">✕</button>
+        </div>
+        ${meta ? `<div class="log-entry-meta">${meta}</div>` : ''}
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--text-muted);font-weight:600">Show Chart</summary>
+          <table style="margin-top:10px">
+            <thead><tr><th>Depth</th><th>Line Out</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </details>
+      </div>`;
+  }).join('');
+}
+
+window.deleteEntry = function(id) {
+  state.savedCharts = state.savedCharts.filter(e => e.id !== id);
+  try { localStorage.setItem('fishclinometer_charts', JSON.stringify(state.savedCharts)); } catch(e) {}
+  renderLog();
+};
+
+document.getElementById('clear-all-btn').addEventListener('click', () => {
+  if (confirm('Delete all saved charts?')) {
+    state.savedCharts = [];
+    try { localStorage.removeItem('fishclinometer_charts'); } catch(e) {}
+    renderLog();
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  Bootstrap
+// ═══════════════════════════════════════════════════════
+
+// Check if iOS needs permission request
+if (typeof DeviceOrientationEvent !== 'undefined' &&
+    typeof DeviceOrientationEvent.requestPermission === 'function') {
+  // iOS 13+ — show overlay
+} else {
+  // Android / desktop — skip overlay, start directly
+  overlay.classList.add('hidden');
+  startSensor();
+}
+
+// Animation loop for canvas
+function loop() {
+  drawInclinometer(state.liveAngle);
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
