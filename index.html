@@ -666,15 +666,15 @@ function drawInclinometer(displayAngle) {
   ctx.fillStyle = '#0a0e14';
   ctx.fillRect(0, 0, CW, CH);
 
-  // ── Cyan vertical line — FIXED, always straight down screen center ──
+  // ── White vertical line — FIXED, always straight down screen center ──
   ctx.save();
-  ctx.shadowColor = '#00d4ff';
-  ctx.shadowBlur = 14;
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 18;
   ctx.beginPath();
   ctx.moveTo(CX, 0);
   ctx.lineTo(CX, CH);
-  ctx.strokeStyle = '#00d4ff';
-  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 10;
   ctx.lineCap = 'butt';
   ctx.stroke();
   ctx.restore();
@@ -688,19 +688,19 @@ function drawInclinometer(displayAngle) {
     return;
   }
 
-  // ── White horizontal line — gravity reference locked to horizontal ──
+  // ── Blue horizontal line — gravity reference locked to horizontal ──
   // liveAngleSigned=90 (upright) → rotRad=0 → horizontal.
   // CCW tilt: signed < 90 → positive rotRad. CW tilt: signed > 90 → negative rotRad.
   const rotRad = (90 - displayAngle) * (Math.PI / 180);
   const span = Math.sqrt(CW * CW + CH * CH);
 
   ctx.save();
-  ctx.shadowColor = '#ffffff';
+  ctx.shadowColor = '#00d4ff';
   ctx.shadowBlur = 12;
   ctx.beginPath();
   ctx.moveTo(CX + Math.cos(rotRad) * span, CY + Math.sin(rotRad) * span);
   ctx.lineTo(CX - Math.cos(rotRad) * span, CY - Math.sin(rotRad) * span);
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = '#00d4ff';
   ctx.lineWidth = 6;
   ctx.lineCap = 'butt';
   ctx.stroke();
